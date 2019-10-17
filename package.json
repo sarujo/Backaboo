@@ -43,7 +43,8 @@
   "scripts": {
     "dev": "ts-node ./src/server.ts",
     "lint": "eslint -p tsconfig.json -c eslintrc.js",
-    "test": "jest"
+    "test": "jest",
+    "dev-watch": "nodemon"
   },
   "author": "Marcin Wanago",
   "license": "MIT",
