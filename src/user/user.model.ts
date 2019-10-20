@@ -1,10 +1,10 @@
-import * as mongoose from 'mongoose';
-import User from './user.interface';
+import * as mongoose from "mongoose";
+import User from "./user.interface";
 
 const addressSchema = new mongoose.Schema({
   city: String,
   country: String,
-  street: String,
+  street: String
 });
 
 const userSchema = new mongoose.Schema({
@@ -12,8 +12,9 @@ const userSchema = new mongoose.Schema({
   email: String,
   name: String,
   password: String,
+  isVerified: { type: Boolean, default: false }
 });
 
-const userModel = mongoose.model<User & mongoose.Document>('User', userSchema);
+const userModel = mongoose.model<User & mongoose.Document>("User", userSchema);
 
 export default userModel;
