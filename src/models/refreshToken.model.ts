@@ -1,5 +1,5 @@
 import * as mongoose from "mongoose";
-import RefreshToken from "./refreshToken.interface";
+import RefreshToken from "../interfaces/refreshToken.interface";
 
 const tokenSchema = new mongoose.Schema({
   _userId: {

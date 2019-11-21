@@ -1,7 +1,7 @@
-import UserWithThatEmailAlreadyExistsException from '../../exceptions/UserWithThatEmailAlreadyExistsException';
-import TokenData from '../../interfaces/tokenData.interface';
-import CreateUserDto from '../../user/user.dto';
-import AuthenticationService from '../authentication.service';
+import UserWithThatEmailAlreadyExistsException from '../exceptions/UserWithThatEmailAlreadyExistsException';
+import TokenData from '../interfaces/tokenData.interface';
+import CreateUserDto from '../dto/user.dto';
+import AuthenticationService from '../services/authentication.service';
 
 describe('The AuthenticationService', () => {
   describe('when creating a cookie', () => {

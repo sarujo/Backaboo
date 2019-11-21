@@ -1,5 +1,5 @@
 import * as mongoose from "mongoose";
-import VerificationToken from "./verificationToken.interface";
+import VerificationToken from "../interfaces/verificationToken.interface";
 
 const tokenSchema = new mongoose.Schema({
   _userId: {
