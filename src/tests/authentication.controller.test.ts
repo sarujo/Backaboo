@@ -1,8 +1,8 @@
 import * as mongoose from 'mongoose';
 import * as request from 'supertest';
-import App from '../../app';
-import CreateUserDto from '../../user/user.dto';
-import AuthenticationController from '../authentication.controller';
+import App from '../app';
+import CreateUserDto from '../dto/user.dto';
+import AuthenticationController from '../controllers/authentication.controller';
 
 describe('The AuthenticationController', () => {
   describe('POST /auth/register', () => {

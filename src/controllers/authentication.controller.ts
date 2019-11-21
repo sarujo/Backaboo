@@ -6,25 +6,23 @@ import Controller from "../interfaces/controller.interface";
 import DataStoredInToken from "../interfaces/dataStoredInToken";
 import TokenData from "../interfaces/tokenData.interface";
 import validationMiddleware from "../middleware/validation.middleware";
-import CreateUserDto from "../user/user.dto";
-import User from "../user/user.interface";
-import userModel from "./../user/user.model";
-import AuthenticationService from "./authentication.service";
-import LogInDto from "./logIn.dto";
+import CreateUserDto from "../dto/user.dto";
+import User from "../interfaces/user.interface";
+import userModel from "../models/user.model";
+import AuthenticationService from "../services/authentication.service";
+import LogInDto from "../dto/logIn.dto";
 import UnverifiedEmailException from "../exceptions/UnverifiedEmailException";
 import * as crypto from "crypto";
 import * as nodemailer from "nodemailer";
-import verificationTokenModel from "../verificationToken/verificationToken.model";
+import verificationTokenModel from "../models/verificationToken.model";
 import {
   emailValidation,
   loginValidation,
   registrationValidation
 } from "../validations/authentication.validations";
 import { validateRequest } from "../middleware/requestValidator.middleware";
-import authMiddleware from "../middleware/auth.middleware";
 import * as uuid from "uuid/v4";
-import refreshTokenModel from "../refreshToken/refreshToken.model";
-import * as cookieParser from "cookie-parser";
+import refreshTokenModel from "../models/refreshToken.model";
 
 class AuthenticationController implements Controller {
   public path = "/auth";
@@ -39,14 +37,12 @@ class AuthenticationController implements Controller {
   }
 
   private initializeRoutes() {
-    // List all registered users. Test route (no auth middleware)
-    this.router.get(
-      "/usersRegistered",
-      authMiddleware,
-      async (request, response) => {
-        const users = await this.user.find();
-        response.send(users);
-      }
+    // Register a new user
+    this.router.post(
+      `${this.path}/register`,
+      validateRequest(registrationValidation),
+      validationMiddleware(CreateUserDto),
+      this.registration
     );
 
     // Verify user and enable login
@@ -62,17 +58,6 @@ class AuthenticationController implements Controller {
       this.resendingVerificationToken
     );
 
-    // Refresh Tokens
-    this.router.post(`${this.path}/refreshToken`, this.refreshingTokens);
-
-    // Register a new user
-    this.router.post(
-      `${this.path}/register`,
-      validateRequest(registrationValidation),
-      validationMiddleware(CreateUserDto),
-      this.registration
-    );
-
     // Login an existing user
     this.router.post(
       `${this.path}/login`,
@@ -81,24 +66,27 @@ class AuthenticationController implements Controller {
       this.loggingIn
     );
 
+    // Refresh Tokens
+    this.router.post(`${this.path}/refreshToken`, this.refreshingTokens);
+
     // Logout user
     this.router.post(`${this.path}/logout`, this.loggingOut);
   }
 
   private registration = async (
-    // FIX REGISTRAION USER PASSING TO generatingAndSendingToken f()
+    // FIX REGISTRATION USER PASSING TO generatingAndSendingToken f()
     request: express.Request,
     response: express.Response,
     next: express.NextFunction
   ) => {
     const userData: CreateUserDto = request.body;
-    let user: any;
+    let user: User;
     try {
       user = await this.authenticationService.register(userData);
     } catch (error) {
       next(error);
     }
-    this.generatingAndSendingToken(user, request, response, next);
+    this.generatingAndSendingToken(user, request, response);
   };
 
   private refreshingTokens = async (
@@ -141,63 +129,10 @@ class AuthenticationController implements Controller {
         AuthenticationController.createCookie(tokenData),
         `RefreshToken=${refreshTokenData}; HttpOnly`
       ]);
-      console.log("^^^^^^^^^^^^^^^^^^^^");
       response.status(200).send("The refresh token has been updated!");
     } else {
       response.status(500).send({ msg: "Failed to update tokens!" });
     }
-    response.send(200);
-  };
-
-  private generatingAndSendingToken = async (
-    { user }: any,
-    request: express.Request,
-    response: express.Response,
-    next: express.NextFunction
-  ) => {
-    console.log("----");
-    console.log(user);
-    const verificationToken = await this.verificationToken.create({
-      _userId: user._id,
-      token: crypto.randomBytes(16).toString("hex")
-    });
-
-    // Save the verification token
-    await verificationToken.save(function(err) {
-      if (err) {
-        return response.status(500).send({ msg: err.message });
-      }
-
-      // Send the email
-      const transporter = nodemailer.createTransport({
-        service: "Sendgrid",
-        auth: {
-          user: process.env.SENDGRID_USERNAME,
-          pass: process.env.SENDGRID_PASSWORD
-        }
-      });
-      const mailOptions = {
-        from: "no-reply@mockaboo.com",
-        to: user.email,
-        subject: "Account Verification Token",
-        text:
-          "Hello,\n\n" +
-          "Please verify your account by clicking the link: \nhttp://" +
-          "localhost:5000/auth" +
-          "/confirmation/" +
-          verificationToken.token +
-          ".\n"
-      };
-      transporter.sendMail(mailOptions, function(err) {
-        if (err) {
-          return response.status(500).send({ msg: err.message });
-        }
-        response.status(200).send({
-          userRegistered: user,
-          message: "A verification email has been sent to " + user.email + "."
-        });
-      });
-    });
   };
 
   private confirmingEmail = async (
@@ -205,9 +140,6 @@ class AuthenticationController implements Controller {
     response: express.Response
   ) => {
     const verificationToken = request.params.verificationToken;
-    console.log("++++");
-    console.log(request.params);
-    console.log(verificationToken);
     const tokenFound = await this.verificationToken.findOne({
       token: verificationToken
     });
@@ -259,46 +191,7 @@ class AuthenticationController implements Controller {
       return response.status(400).send({
         msg: "This account has already been verified. Please log in."
       });
-
-    const verificationToken = await this.verificationToken.create({
-      _userId: user._id,
-      token: crypto.randomBytes(16).toString("hex")
-    });
-
-    await verificationToken.save(function(err) {
-      if (err) {
-        return response.status(500).send({ msg: err.message });
-      }
-
-      // Send the email
-      const transporter = nodemailer.createTransport({
-        service: "Sendgrid",
-        auth: {
-          user: process.env.SENDGRID_USERNAME,
-          pass: process.env.SENDGRID_PASSWORD
-        }
-      });
-      const mailOptions = {
-        from: "no-reply@mockaboo.com",
-        to: user.email,
-        subject: "Account Verification Token",
-        text:
-          "Hello,\n\n" +
-          "Please verify your account by clicking the link: \nhttp://" +
-          "localhost:5000/auth" +
-          "/confirmation/" +
-          verificationToken.token +
-          ".\n"
-      };
-      transporter.sendMail(mailOptions, function(err) {
-        if (err) {
-          return response.status(500).send({ msg: err.message });
-        }
-        response
-          .status(200)
-          .send("A verification email has been sent to " + user.email + ".");
-      });
-    });
+    this.generatingAndSendingToken(user, request, response);
   };
 
   private loggingIn = async (
@@ -318,12 +211,8 @@ class AuthenticationController implements Controller {
           user.password = undefined;
           const tokenData = AuthenticationController.createToken(user);
           const refreshTokenData = uuid();
-          console.log(refreshTokenData);
-          console.log("////////");
-          console.log(tokenData);
 
           // SAVE REFRESH TOKEN
-
           const refreshToken = await this.refreshToken.create({
             _userId: user._id,
             token: refreshTokenData
@@ -370,6 +259,54 @@ class AuthenticationController implements Controller {
       token: jwt.sign(dataStoredInToken, secret, { expiresIn })
     };
   }
+
+  private generatingAndSendingToken = async (
+    user: User,
+    request: express.Request,
+    response: express.Response
+  ) => {
+    const verificationToken = await this.verificationToken.create({
+      _userId: user._id,
+      token: crypto.randomBytes(16).toString("hex")
+    });
+
+    // Save the verification token
+    await verificationToken.save(function(err) {
+      if (err) {
+        return response.status(500).send({ msg: err.message });
+      }
+
+      // Send the email
+      const transporter = nodemailer.createTransport({
+        service: "Sendgrid",
+        auth: {
+          user: process.env.SENDGRID_USERNAME,
+          pass: process.env.SENDGRID_PASSWORD
+        }
+      });
+      const mailOptions = {
+        from: "no-reply@mockaboo.com",
+        to: user.email,
+        subject: "Account Verification Token",
+        text:
+          "Hello,\n\n" +
+          "Please verify your account by clicking the link: \nhttp://" +
+          "localhost:5000/auth" +
+          "/confirmation/" +
+          verificationToken.token +
+          ".\n"
+      };
+      transporter.sendMail(mailOptions, function(err) {
+        if (err) {
+          return response.status(500).send({ msg: err.message });
+        }
+        response.status(200).send({
+          userRegistered: user,
+          message: "A verification email has been sent to " + user.email + "."
+        });
+      });
+    });
+  };
 }
 
 export default AuthenticationController;

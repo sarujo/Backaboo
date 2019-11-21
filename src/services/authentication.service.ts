@@ -1,7 +1,8 @@
 import * as bcrypt from "bcrypt";
 import UserWithThatEmailAlreadyExistsException from "../exceptions/UserWithThatEmailAlreadyExistsException";
-import CreateUserDto from "../user/user.dto";
-import userModel from "./../user/user.model";
+import CreateUserDto from "../dto/user.dto";
+import userModel from "../models/user.model";
+import TokenData from "../interfaces/tokenData.interface";
 
 class AuthenticationService {
   public user = userModel;
@@ -17,9 +18,10 @@ class AuthenticationService {
     });
 
     user.password = undefined;
-    return {
-      user
-    };
+    return user;
+  }
+  public createCookie(tokenData: TokenData) {
+    return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn}`;
   }
 }
 
