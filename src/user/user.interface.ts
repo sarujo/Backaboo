@@ -5,8 +5,8 @@ interface User {
   password: string;
   isVerified: boolean;
   address?: {
-    street: string,
-    city: string,
+    street: string;
+    city: string;
   };
 }
 
