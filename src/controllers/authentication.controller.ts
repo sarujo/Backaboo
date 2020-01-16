@@ -1,7 +1,5 @@
-import * as bcrypt from "bcrypt";
 import * as express from "express";
 import * as jwt from "jsonwebtoken";
-import WrongCredentialsException from "../exceptions/WrongCredentialsException";
 import Controller from "../interfaces/controller.interface";
 import DataStoredInToken from "../interfaces/dataStoredInToken";
 import TokenData from "../interfaces/tokenData.interface";
@@ -11,7 +9,6 @@ import User from "../interfaces/user.interface";
 import userModel from "../models/user.model";
 import AuthenticationService from "../services/authentication.service";
 import LogInDto from "../dto/logIn.dto";
-import UnverifiedEmailException from "../exceptions/UnverifiedEmailException";
 import * as crypto from "crypto";
 import * as nodemailer from "nodemailer";
 import verificationTokenModel from "../models/verificationToken.model";
@@ -199,41 +196,25 @@ class AuthenticationController implements Controller {
     response: express.Response,
     next: express.NextFunction
   ) => {
-    const logInData: LogInDto = request.body;
-    const user = await this.user.findOne({ email: logInData.email });
-    if (user) {
-      const isPasswordMatching = await bcrypt.compare(
-        logInData.password,
-        user.password
+    let user: User;
+    let tokenData: string;
+    let refreshTokenData: string;
+    try {
+      user = await this.authenticationService.login(request.body);
+      tokenData = await this.authenticationService.generateTokenData(user);
+      refreshTokenData = await this.authenticationService.generateRefreshToken(
+        user
       );
-      if (isPasswordMatching) {
-        if (user.isVerified) {
-          user.password = undefined;
-          const tokenData = AuthenticationController.createToken(user);
-          const refreshTokenData = uuid();
-
-          // SAVE REFRESH TOKEN
-          const refreshToken = await this.refreshToken.create({
-            _userId: user._id,
-            token: refreshTokenData
-          });
-
-          await refreshToken.save();
-
-          response.setHeader("Set-Cookie", [
-            AuthenticationController.createCookie(tokenData),
-            `RefreshToken=${refreshTokenData}; HttpOnly`
-          ]);
-          response.send(user);
-        } else {
-          next(new UnverifiedEmailException());
-        }
-      } else {
-        next(new WrongCredentialsException());
-      }
-    } else {
-      next(new WrongCredentialsException());
+    } catch (error) {
+      next(error);
     }
+
+    response.setHeader("Set-Cookie", [
+      tokenData,
+      `RefreshToken=${refreshTokenData}; HttpOnly`
+    ]);
+    response.status(200);
+    response.send(user);
   };
 
   private loggingOut = (
