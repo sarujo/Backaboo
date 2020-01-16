@@ -4,6 +4,7 @@ import * as express from "express";
 import * as mongoose from "mongoose";
 import Controller from "./interfaces/controller.interface";
 import errorMiddleware from "./middleware/error.middleware";
+import * as cors from "cors";
 
 class App {
   public app: express.Application;
@@ -30,6 +31,7 @@ class App {
   private initializeMiddlewares() {
     this.app.use(bodyParser.json());
     this.app.use(cookieParser());
+    this.app.use(cors());
   }
 
   private initializeErrorHandling() {
