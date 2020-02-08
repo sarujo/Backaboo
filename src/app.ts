@@ -5,12 +5,59 @@ import * as mongoose from "mongoose";
 import Controller from "./interfaces/controller.interface";
 import errorMiddleware from "./middleware/error.middleware";
 import * as cors from "cors";
+import * as graphqlHTTP from "express-graphql";
+import { makeExecutableSchema } from "graphql-tools";
+import getAllUsers from "./services/users.service";
 
 class App {
   public app: express.Application;
 
   constructor(controllers: Controller[]) {
     this.app = express();
+
+    let typeDefs: any = [
+      `
+  type Query {
+    hello: String
+    users: [User]
+  }
+  
+  type User {
+    isVerified: Boolean
+    _id: String
+    name: String
+    password: String
+    email: String
+  }
+     
+  type Mutation {
+    hello(message: String) : String
+  }
+`
+    ];
+
+    let helloMessage: String = "World!";
+
+    let resolvers = {
+      Query: {
+        hello: () => helloMessage,
+        users: () => getAllUsers()
+      },
+      Mutation: {
+        hello: (_: any, helloData: any) => {
+          helloMessage = helloData.message;
+          return helloMessage;
+        }
+      }
+    };
+    this.app.use(cors());
+    this.app.use(
+      "/graphql",
+      graphqlHTTP({
+        schema: makeExecutableSchema({ typeDefs, resolvers }),
+        graphiql: true
+      })
+    );
 
     this.connectToTheDatabase();
     this.initializeMiddlewares();
